@@ -1,0 +1,119 @@
+# Docker Compose for 3-Node MongoDB Replica Set + Node.js API + React Frontend
+# Keeping all services on one Docker bridge network avoids Windows hosts-file edits.
+
+services:
+  # ---------------------------------------------------------------------------
+  # 1. Three-Node MongoDB 7 Replica Set (rs0)
+  # ---------------------------------------------------------------------------
+  mongo1:
+    image: mongo:7
+    container_name: ledger-mongo1
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      # Exposed for MongoDB Compass / mongosh inspection (use ?directConnection=true)
+      - "27017:27017"
+    volumes:
+      - mongo1_data:/data/db
+    networks:
+      - ledger_net
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  mongo2:
+    image: mongo:7
+    container_name: ledger-mongo2
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo2_data:/data/db
+    networks:
+      - ledger_net
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  mongo3:
+    image: mongo:7
+    container_name: ledger-mongo3
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo3_data:/data/db
+    networks:
+      - ledger_net
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # ---------------------------------------------------------------------------
+  # 2. One-Shot Replica Set Initializer
+  # ---------------------------------------------------------------------------
+  mongo-init:
+    image: mongo:7
+    container_name: ledger-mongo-init
+    depends_on:
+      mongo1:
+        condition: service_healthy
+      mongo2:
+        condition: service_healthy
+      mongo3:
+        condition: service_healthy
+    volumes:
+      - ./scripts:/scripts:ro
+    entrypoint: ["mongosh", "--host", "mongo1:27017", "/scripts/init-replica-set.js"]
+    networks:
+      - ledger_net
+
+  # ---------------------------------------------------------------------------
+  # 3. Express Backend & CLI Scripts Runner
+  # ---------------------------------------------------------------------------
+  api:
+    image: node:20-alpine
+    container_name: ledger-api
+    working_dir: /app/backend
+    depends_on:
+      mongo-init:
+        condition: service_completed_successfully
+    ports:
+      - "4000:4000"
+    env_file:
+      - .env
+    environment:
+      - MONGO_URI=mongodb://mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0
+    volumes:
+      - ./backend:/app/backend
+      - ./scripts:/app/scripts
+    command: ["sh", "-c", "npm install && npm start"]
+    networks:
+      - ledger_net
+
+  # ---------------------------------------------------------------------------
+  # 4. React Dashboard (Vite Dev Server)
+  # ---------------------------------------------------------------------------
+  frontend:
+    image: node:20-alpine
+    container_name: ledger-frontend
+    working_dir: /app/frontend
+    depends_on:
+      - api
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app/frontend
+    command: ["sh", "-c", "npm install && npm run dev -- --host 0.0.0.0"]
+    networks:
+      - ledger_net
+
+volumes:
+  mongo1_data:
+  mongo2_data:
+  mongo3_data:
+
+networks:
+  ledger_net:
+    driver: bridge
