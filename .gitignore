@@ -1,5 +1,34 @@
-node_modules/
-.local-mongo-rs/
+
+# Environment variables and secrets
 .env
+.env.*
+!.env.example
+!.env.*.example
+
+# Nested environment files
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build files
 dist/
+build/
+.next/
+coverage/
+
+# Logs
 *.log
+npm-debug.log*
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

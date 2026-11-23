@@ -8,10 +8,7 @@
 
 import { getDb } from "../config/db.js";
 
-/**
- * Shared aggregation pipeline that computes exact account balances directly
- * from the immutable ledger_events write model.
- */
+
 function buildLedgerAggregationStages() {
   return [
     // Step 1: Sort deterministically (with _id tie-breaker for identical timestamps)
