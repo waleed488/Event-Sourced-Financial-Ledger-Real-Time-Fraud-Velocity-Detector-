@@ -66,7 +66,8 @@ Run these with the API server running:
 
 ```powershell
 cd scripts
-node --env-file=../.env test-idempotency.js   # 10 parallel identical keys -> 1 transfer
+node --env-file=../.env test-naive-baseline.js # Naive overwrite-in-place fails (-$1,500 overdraft)
+node --env-file=../.env test-idempotency.js    # 10 parallel identical keys -> 1 transfer
 node --env-file=../.env test-concurrency.js   # 50 parallel transfers -> 0 overdraft
 node --env-file=../.env test-recovery.js      # Wipe account_balances -> $group+$merge rebuild -> exact match
 node --env-file=../.env test-fraud.js         # Inject all 4 fraud rules -> <2s detection latency

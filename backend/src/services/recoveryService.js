@@ -106,19 +106,41 @@ export async function rebuildBalances() {
 }
 
 /**
- * Compare live account_balances against balances recalculated from ledger_events.
+ * Verify live account_balances against ledger_events safely by rebuilding into
+ * a separate "balances_rebuilt" collection via $merge and diffing them.
  * Does NOT overwrite account_balances.
  */
 export async function verifyBalances() {
   const db = getDb();
 
+  // Ensure the staging collection has a unique key for $merge (on: "account_id")
+  await db
+    .collection("balances_rebuilt")
+    .createIndex({ account_id: 1 }, { unique: true, name: "ux_rebuilt_account_id" });
+  await db.collection("balances_rebuilt").deleteMany({});
+
+  await db
+    .collection("ledger_events")
+    .aggregate(
+      [
+        ...buildLedgerAggregationStages(),
+        {
+          $merge: {
+            into: "balances_rebuilt",
+            on: "account_id",
+            whenMatched: "replace",
+            whenNotMatched: "insert"
+          }
+        }
+      ],
+      { allowDiskUse: true }
+    )
+    .toArray();
+
   const liveRows = await db.collection("account_balances").find({}).toArray();
   const liveMap = new Map(liveRows.map((row) => [row.account_id, row]));
 
-  const expectedRows = await db
-    .collection("ledger_events")
-    .aggregate(buildLedgerAggregationStages(), { allowDiskUse: true })
-    .toArray();
+  const expectedRows = await db.collection("balances_rebuilt").find({}).toArray();
   const expectedMap = new Map(expectedRows.map((row) => [row.account_id, row]));
 
   const allAccounts = await db

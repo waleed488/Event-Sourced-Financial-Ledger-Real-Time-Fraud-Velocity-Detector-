@@ -9,10 +9,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "./api.js";
-import { RULE_LABELS, describeAlert } from "./format.js";
 import AccountPicker from "./components/AccountPicker.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import ToastStack from "./components/ToastStack.jsx";
+import { RULE_LABELS, describeAlert } from "./format.js";
 import DepositWithdraw from "./views/DepositWithdraw.jsx";
 import LedgerIntegrity from "./views/LedgerIntegrity.jsx";
 import OpenAccount from "./views/OpenAccount.jsx";
@@ -60,7 +60,7 @@ export default function App() {
       .catch((err) => notify("error", "Cannot reach the API", err.message));
   }, [activeAccountId, notify]);
 
-  // Load the active account, and reload it after every change
+  
   useEffect(() => {
     if (!activeAccountId) return;
     localStorage.setItem("activeAccountId", activeAccountId);
